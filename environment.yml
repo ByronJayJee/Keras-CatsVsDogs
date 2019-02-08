@@ -73,5 +73,3 @@ dependencies:
   - yaml=0.1.7=hc54c509_2
   - zlib=1.2.11=h62dcd97_3
   - imutils=0.4.6=py36_0
-prefix: C:\Users\gaskinbj\AppData\Local\Continuum\anaconda3\envs\keras
-
