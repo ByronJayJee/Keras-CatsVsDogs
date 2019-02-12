@@ -5,6 +5,7 @@ from keras.models import Model
 from keras.layers import Flatten, Dense, Dropout
 from keras.layers import GlobalMaxPooling2D
 import numpy as np
+import matplotlib.pyplot as plt
 
 ### create base_model using ResNet50 trained on imagenet then cut off the average pooling and fully connected layers (using include_top=False)
 base_model = ResNet50(weights='imagenet', include_top=False)
@@ -13,7 +14,8 @@ base_model = ResNet50(weights='imagenet', include_top=False)
 
 
 ### Get chosen image ready for ResNet50 arch. This involves resizing to (224,224)
-img_path = '../dogscats/combined_dataset/dogs/dog.1.jpg'
+##img_path = '../dogscats/combined_dataset/dogs/dog.1.jpg'
+img_path = '../../datasets/combined_dogscats/dogs/dog.1.jpg'
 img = image.load_img(img_path, target_size=(224, 224))
 x = image.img_to_array(img)
 x = np.expand_dims(x, axis=0)
@@ -66,5 +68,19 @@ print(heatmap)
 hm1 = heatmap[0,:,:,0]
 print(hm1)
 
-hm1_img_path = '../dogscats/combined_dataset/hm.1.jpg'
-hm1_img = image.save_img(hm1_img_path,hm1)
+max_hm1 = np.amax(hm1)
+min_hm1 = np.amin(hm1)
+print('max_hm1', max_hm1)
+print('min_hm1', min_hm1)
+
+hm1_norm = (hm1 - min_hm1) / (max_hm1 - min_hm1)
+hm1_scale = hm1_norm * 255
+print(hm1_scale)
+
+#hm1_img_path = './output/hm.1.jpg'
+#hm1_img = image.save_img(hm1_img_path,hm1)
+
+#plt.imshow(img)
+plt.imshow(hm1_scale, cmap='jet', interpolation='gaussian', alpha=0.25)
+plt.colorbar()
+plt.show()
