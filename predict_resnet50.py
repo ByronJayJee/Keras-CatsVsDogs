@@ -6,6 +6,7 @@ from keras.layers import Flatten, Dense, Dropout
 from keras.layers import GlobalMaxPooling2D
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 ### create base_model using ResNet50 trained on imagenet then cut off the average pooling and fully connected layers (using include_top=False)
 base_model = ResNet50(weights='imagenet', include_top=False)
@@ -77,10 +78,61 @@ hm1_norm = (hm1 - min_hm1) / (max_hm1 - min_hm1)
 hm1_scale = hm1_norm * 255
 print(hm1_scale)
 
+
+'''
+### write a function to see if magnitude of color vector is within normed threshold instead of using this lambda function
+# Still trying to get this clipping to work
+
+cmap = plt.cm.jet
+
+my_cmap0 = cmap(np.arange(cmap.N))
+my_cmap = cmap(np.arange(cmap.N))
+
+# Create new colormap
+#my_cmap = ListedColormap(my_cmap)
+   
+for i in range(0,len(my_cmap)):
+   entry = my_cmap[i]
+   mag2  = entry[0]*entry[0]
+   mag2 += entry[1]*entry[1]
+   mag2 += entry[2]*entry[2]
+   mag2 /= 3.0
+
+   min2 = 60*60/255/255
+   max2 = 180*180/255/255
+   #max2 = 90*90/255/255
+
+   print('min2, max2, mag2', min2, max2, mag2)
+   #if(mag2 > max2):
+   if(mag2 > max2 or mag2 < min2):
+      entry[3]=0.0
+      my_cmap[i]=entry
+      print('i, entry', i, entry)
+   #print(my_cmap[i])
+
+print('my_cmap')
+for line in my_cmap:
+   print(line)
+
+# Create new colormap
+my_cmap = ListedColormap(my_cmap)
+my_cmap0 = ListedColormap(my_cmap0)
+'''
+
+'''
+hm1_scale_clip = hm1_scale
+hm1_scale_clip[hm1_scale<60]=np.nan
+hm1_scale_clip[hm1_scale_clip>180]=np.nan
+print(hm1_scale_clip)
+'''
+
 #hm1_img_path = './output/hm.1.jpg'
 #hm1_img = image.save_img(hm1_img_path,hm1)
 
-#plt.imshow(img)
-plt.imshow(hm1_scale, cmap='jet', interpolation='gaussian', alpha=0.25)
+plt.imshow(img)
+#plt.imshow(hm1_scale, cmap='jet', interpolation='gaussian', alpha=0.75, extent=(0,224,224,0))
+plt.imshow(hm1_scale, cmap='Reds', interpolation='gaussian', alpha=0.5, extent=(0,224,224,0))
+#plt.imshow(hm1_scale, cmap=my_cmap, interpolation='gaussian', extent=(0,224,224,0))
+#plt.imshow(hm1_scale, cmap=cmap1, interpolation='gaussian', extent=(0,224,224,0))
 plt.colorbar()
 plt.show()
