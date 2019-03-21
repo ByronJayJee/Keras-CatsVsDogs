@@ -136,7 +136,7 @@ whole_model = Model(inputs = base_model.input, outputs = predictions)
 #whole_model = VGG16(weights='imagenet')
 
 
-# Headless VGG16i has 20 layers
+# Headless VGG16 has 20 layers
 train_line = 16
 for idx in range(len(whole_model.layers)):
    layer = whole_model.layers[idx]
@@ -188,9 +188,9 @@ H = whole_model.fit_generator(datagen.flow(trainX, trainY, batch_size=8),
    validation_data=datagen.flow(testX, testY, batch_size=8), steps_per_epoch=len(trainX) // 8,
    epochs=EPOCHS, validation_steps=8)
 
-whole_model.save('my_model.h5')
+whole_model.save('models/my_model.h5')
 
-model2 = load_model('my_model.h5')
+model2 = load_model('models/my_model.h5')
 '''
 #preds = model.predict(x)
 preds = whole_model.predict(x)
