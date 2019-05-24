@@ -3,12 +3,14 @@ from keras.applications import VGG16
 from keras.preprocessing import image
 #from keras.applications.resnet50 import preprocess_input, decode_predictions
 from keras.applications.vgg16 import preprocess_input, decode_predictions
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.layers import Flatten, Dense, Dropout
 from keras.layers import GlobalMaxPooling2D
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+
+from keras.preprocessing.image import ImageDataGenerator
 
 # import necessary packages
 from sklearn.preprocessing import LabelBinarizer
@@ -30,7 +32,8 @@ data = []
 labels = []
 
 # grab the image paths and randomly shuffle them
-imagePaths = sorted(list(paths.list_images('..\\..\\datasets\\combined_dogscats\\')))
+#imagePaths = sorted(list(paths.list_images('..\\..\\datasets\\combined_dogscats\\')))
+imagePaths = sorted(list(paths.list_images('../tbportal_images/combined_dataset/')))
 random.seed(42)
 random.shuffle(imagePaths)
 
@@ -47,6 +50,7 @@ for imagePath in imagePaths:
 
    ### Get chosen image ready for VGG16 arch. This involves resizing to (224,224)
    img = image.load_img(imagePath, target_size=(224, 224))
+   #img = image.load_img(imagePath, target_size=(1024, 1024))
    x = image.img_to_array(img)
    x = np.expand_dims(x, axis=0)
    x = preprocess_input(x)
@@ -85,32 +89,73 @@ print(len(lb.classes_))
 
 # partition the data into training and testing splits using 75% of
 # the data for training and the remaining 25% for testing
-(trainX, testX, trainY, testY) = train_test_split(data[:20000], labels_ohe[:20000], test_size=0.25, random_state=42)
+(trainX, testX, trainY, testY) = train_test_split(data[:80], labels_ohe[:80], test_size=0.25, random_state=42)
+
+datagen = ImageDataGenerator(
+   featurewise_center=False,  # set input mean to 0 over the dataset
+   samplewise_center=False,  # set each sample mean to 0
+   featurewise_std_normalization=False,  # divide inputs by std of the dataset
+   samplewise_std_normalization=False,  # divide each input by its std
+   zca_whitening=False,  # apply ZCA whitening
+   shear_range = 10.0,
+   brightness_range=[0.3, 0.6],
+   rotation_range=10,  # randomly rotate images in the range (degrees, 0 to 180)
+   zoom_range = 0.2, # Randomly zoom image 
+   width_shift_range=0.2,  # randomly shift images horizontally (fraction of total width)
+   height_shift_range=0.2,  # randomly shift images vertically (fraction of total height)
+   horizontal_flip=True,  # randomly flip images
+   vertical_flip=False)  # randomly flip images
+
+
+datagen.fit(trainX)
 
 print('trainY[:10]')
 print(trainY[:10])
 
 ### create base_model using VGG16 trained on imagenet then cut off the average pooling and fully connected layers (using include_top=False)
-base_model = VGG16(weights='imagenet', include_top=False)
+base_model = VGG16(weights=None, input_shape=(224, 224, 3), include_top=False)
+#base_model = VGG16(weights='imagenet', input_shape=(224, 224, 3), include_top=False)
+#base_model = VGG16(weights='imagenet', input_shape=(1024, 1024, 3), include_top=False)
 #base_model = ResNet50(weights='imagenet')
 #model = Model(inputs=base_model.input, outputs=base_model.get_layer('bn5c_branch2c').output)
 
 
 ### Take base_model, then add a GlobalMaxPooling layer followed by a fully connected layer with 2 output nodes
 output_pool = GlobalMaxPooling2D()(base_model.output)
+'''
+output_pool = Dense(512, activation = 'relu')(output_pool)
+output_pool = Dense(128, activation = 'relu')(output_pool)
+output_pool = Dense(64, activation = 'relu')(output_pool)
+'''
+output_pool = Dense(256, activation = 'relu')(output_pool)
 predictions = Dense(2, activation = 'softmax')(output_pool)
 
 #create graph of new whole model
-whole_model = Model(input = base_model.input, output = predictions)
+whole_model = Model(inputs = base_model.input, outputs = predictions)
+#whole_model = Model(input = base_model.input, output = base_model.output)
+#whole_model = VGG16(weights='imagenet')
 
-for layer in whole_model.layers:
-   if layer.name != 'dense_1':
+
+# Headless VGG16 has 20 layers
+train_line = 16
+for idx in range(len(whole_model.layers)):
+   layer = whole_model.layers[idx]
+   if idx < train_line:
       layer.trainable = False
-
+   if idx >= train_line:
+      layer.trainable = True
+'''
+for layer in whole_model.layers:
+   print(layer.name)
+   layer.trainable = False
+   if layer.name == 'dense_1' or layer.name == 'dense_2':
+      print(layer.name + ' Train!')
+      layer.trainable = True
+'''
 
 # initialize our initial learning rate and # of epochs to train for
 INIT_LR = 0.5
-#EPOCHS = 75
+#EPOCHS = 150
 EPOCHS = 30
 
 # compile the model using SGD as our optimizer and categorical
@@ -123,7 +168,7 @@ whole_model.compile(loss="binary_crossentropy", optimizer=opt, metrics=["accurac
 
 ### print summary of the model architecture
 whole_model.summary()
-
+#sys.exit()
 #trainX = np.array(trainX)
 #trainY = np.array(trainY)
 
@@ -132,8 +177,20 @@ print('trainX dimension: ', trainX.shape)
 print('trainY dimension: ', trainY.shape)
 
 # train the neural network
-H = whole_model.fit(trainX, trainY, validation_data=(testX, testY), epochs=EPOCHS, batch_size=32, verbose=2)
+#H = whole_model.fit(trainX, trainY, validation_data=(testX, testY), epochs=EPOCHS, batch_size=32, verbose=2)
+#H = whole_model.fit(trainX, trainY, validation_data=(testX, testY), epochs=EPOCHS, batch_size=8, verbose=2)
 
+#H = whole_model.fit_generator(datagen.flow(trainX, trainY, batch_size=8),
+#   validation_data=(testX, testY), steps_per_epoch=len(trainX) // 8,
+#   epochs=EPOCHS)
+
+H = whole_model.fit_generator(datagen.flow(trainX, trainY, batch_size=8),
+   validation_data=datagen.flow(testX, testY, batch_size=8), steps_per_epoch=len(trainX) // 8,
+   epochs=EPOCHS, validation_steps=8)
+
+whole_model.save('models/my_model.h5')
+
+model2 = load_model('models/my_model.h5')
 '''
 #preds = model.predict(x)
 preds = whole_model.predict(x)
